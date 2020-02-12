@@ -4,6 +4,7 @@
 const User = use('App/Models/User')
 const crypto = require('crypto')
 const Mail = use('Mail')
+const isAfter = require('date-fns/isAfter')
 
 class ForgotPasswordController {
   async store ({ request, response }) {
@@ -34,6 +35,30 @@ class ForgotPasswordController {
       return response
         .status(error.status)
         .send({ error: { message: 'Email inexistente, verifique os dados!' } })
+    }
+  }
+
+  async update ({ request, response }) {
+    try {
+      const { token, password } = request.all()
+
+      const user = await User.findByOrFail('token', token)
+
+      if (isAfter(user.token_created_at, new Date())) {
+        return response
+          .status(401)
+          .send({ error: { message: 'Token de recuperação está expirado' } })
+      }
+
+      user.token = null
+      user.token_created_at = null
+      user.password = password
+
+      await user.save()
+    } catch (error) {
+      return response
+        .status(error.status)
+        .send({ error: { message: 'Algo deu errado ao resetar sua senha!' } })
     }
   }
 }
